@@ -1,3 +1,5 @@
 ﻿  Source.cpp
-c:\users\ashwin\desktop\c++\aes\aes_console\aes_console\source.cpp(181): warning C4715: 'mixMultiply': not all control paths return a value
-  aes_console.vcxproj -> C:\Users\Ashwin\Desktop\c++\AES\aes_console\Debug\aes_console.exe
+c:\users\alex\downloads\aes-ashwin\aes_console_ashwin\aes_console\source.cpp(122): warning C4018: '<': signed/unsigned mismatch
+c:\users\alex\downloads\aes-ashwin\aes_console_ashwin\aes_console\source.cpp(137): warning C4018: '<': signed/unsigned mismatch
+c:\users\alex\downloads\aes-ashwin\aes_console_ashwin\aes_console\source.cpp(621): warning C4101: 'test': unreferenced local variable
+  aes_console.vcxproj -> C:\Users\Alex\Downloads\AES-ashwin\aes_console_ashwin\Debug\aes_console.exe
