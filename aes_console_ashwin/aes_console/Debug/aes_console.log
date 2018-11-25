@@ -1,5 +1,2 @@
 ﻿  Source.cpp
-c:\users\alex\downloads\aes-ashwin\aes_console_ashwin\aes_console\source.cpp(122): warning C4018: '<': signed/unsigned mismatch
-c:\users\alex\downloads\aes-ashwin\aes_console_ashwin\aes_console\source.cpp(137): warning C4018: '<': signed/unsigned mismatch
-c:\users\alex\downloads\aes-ashwin\aes_console_ashwin\aes_console\source.cpp(621): warning C4101: 'test': unreferenced local variable
-  aes_console.vcxproj -> C:\Users\Alex\Downloads\AES-ashwin\aes_console_ashwin\Debug\aes_console.exe
+  aes_console.vcxproj -> C:\Users\Ashwin\Desktop\c++\aes\AES\aes_console_ashwin\Debug\aes_console.exe
