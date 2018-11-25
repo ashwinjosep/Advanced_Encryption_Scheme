@@ -168,13 +168,46 @@ class AES {
 		std::byte{ 0x55 }, std::byte{ 0x21 }, std::byte{ 0x0c }, std::byte{ 0x7d }
 	};
 
-	//IV variable
+	// IV variable
 	state IV;
+
+	//Key Value
+	word expandedKey[60];
+
+	// Length Parameters
+	int Nk;
+	int Nb;
+	int Nr;
 
 public:
 
-	//message encryption method, at the multiple block level
-	vector<struct state*> encrypt(vector<struct state*> input, struct state key)
+	void setParameters(int option)
+	{
+		Nb = 4;
+		if (option == 3)
+		{
+			// AES256
+			Nk = 8;
+			Nr = 14;
+		}
+		else if (option == 2)
+		{
+			// AES192
+			Nk = 6;
+			Nr = 12;
+		}
+		else
+		{
+			// AES256
+			Nk = 4;
+			Nr = 10;
+		}
+
+		setKey();
+	}
+
+	// message encryption method, at the multiple block level
+	vector<struct state*> encrypt(vector<struct state*> input)
 	{
 		//output vector of encrypted blocks
 		vector<struct state*> output;
@@ -182,19 +215,19 @@ public:
 		output.push_back(new state);
 		//GENERATE IV RANDOMLY AND SET AS THE FIRST OUTPUT BLOCK
 		generateIV();
-		*(output.back()) = blockEncrypt(IV, key);
+		*(output.back()) = IV;
 		
 		//for each input block, create an encrypted output block in CBC mode
 		for (unsigned int i = 0; i < input.size(); i++)
 		{
 			output.push_back(new state);
-			*(output.back()) = blockEncrypt(xorBlock(output[i],input[i]), key);
+			*(output.back()) = blockEncrypt(xorBlock(output[i],input[i]));
 		}
 		return output;
 	}
 
-	//message decryption method, at the multiple block level
-	vector<struct state*> decrypt(vector<struct state*> input, struct state key)
+	// message decryption method, at the multiple block level
+	vector<struct state*> decrypt(vector<struct state*> input)
 	{
 		//output vector of decrypted blocks
 		vector<struct state*> output;
@@ -203,13 +236,58 @@ public:
 		for (unsigned int i = 1; i < input.size(); i++)
 		{
 			output.push_back(new state);
-			*(output.back()) = xorBlock(&blockDecrypt(*input[i], key), input[i-1]);
+			*(output.back()) = xorBlock(&blockDecrypt(*input[i]), input[i-1]);
 		}
 		return output;
 	}
 
 private:
 
+	void setKey()
+	{
+		//open the key input file
+		ifstream keyFile;
+		keyFile.open("keyFile.txt", ios::binary | ios::in);
+
+		int i = 0;
+		int j = 0;
+
+		//TODO, handle >128 bit keys, new struct?
+		while (!keyFile.eof())
+		{
+			for (i = 0; i < Nk; i++)
+			{
+				for (j = 0; j < 4; j++)
+				{
+					keyFile.read((char*)(&(expandedKey[i].byteWord[j])), 1);
+				}
+			}
+		}
+
+		//If key length is less than required generate random
+		if (i < Nk || j < 4)
+		{
+			std::stringstream stream;
+			int tempWord = 0;
+			for (; i < Nk; i++)
+			{
+				for (j = 0; j < 4; j++)
+				{
+					do
+					{
+						tempWord = generateRandom();
+					} while (tempWord == 0);
+					stream << std::hex << tempWord;
+					expandedKey[i].byteWord[j] = std::byte(tempWord);
+				}
+			}
+		}
+
+		// Perform Key Expansion
+		keyExpansion();
+	}
+
+	//Random Number Generator
 	int generateRandom()
 	{
 		BCRYPT_ALG_HANDLE Prov;
@@ -269,6 +347,7 @@ private:
 		return result;
 	}
 
+	// xors 2 state matrices
 	struct state xorBlock(struct state* s1, struct state* s2)
 	{
 		struct state temp;
@@ -513,25 +592,16 @@ private:
 	}
 
 	// Key Expansion function
-	void keyExpansion(state key, word w[], int Nk, int Nb, int Nr)
+	void keyExpansion()
 	{
 		word temp;
 
-		// Copying first Nk words to the expanded key
-		for (int i = 0; i < Nk; i++)			// Loop runs 4 times since Nk = 4
-		{
-			for (int j = 0; j < 4; j++)		// Run for all 4 bytes in the word
-			{
-				w[i].byteWord[j] = key.stateByte[j][i];
-			}
-			//cout << endl << endl;
-			//PrintWord(w[i]);
-		}
-
+		// First Nk words are the original key
+		
 		//Expanding the key for the remaining Nb*(Nr+1) - Nk words
 		for (int i = Nk; i < Nb*(Nr + 1); i++)
 		{
-			temp = w[i - 1];
+			temp = expandedKey[i - 1];
 
 			//cout << "\n\ni : " << std::dec << i << " Temp " << endl;
 			//PrintWord(temp);
@@ -545,31 +615,13 @@ private:
 				temp = SubWord(temp);
 			}
 
-			//cout << "\n\ni : " << std::dec << i << " After XOR with Rcon " << endl;
-			//PrintWord(temp);
-
-			w[i] = performXor(w[i - Nk], temp);
-
-			//cout << "\n\ni : " << std::dec << i << " w[i] " << endl;
-			//PrintWord(w[i]);
-
+			expandedKey[i] = performXor(expandedKey[i - Nk], temp);
 		}
 	}
 
 	//Encryption Function for a single block
-	struct state blockEncrypt(struct state s, struct state key)
+	struct state blockEncrypt(struct state s)
 	{
-		// Key Expansion 
-
-		int Nk = 4;			// Key Length in words Variable for AES128
-		int Nb = 4;			// Number of columns in state for AES128
-		int Nr = 10;		// Number of rounds required for AES128
-
-		// Expanded key should be of length Nb(Nr+1). Nb = 4 and Nr = 14 in AES256 implementation
-		word expandedKey[60];
-
-		//perform key expansion
-		keyExpansion(key, expandedKey, Nk, Nb, Nr);
 
 		// Add Round Key
 		s = AddRoundKey(s, expandedKey, 0, Nb);
@@ -620,20 +672,8 @@ private:
 	}
 
 	//
-	struct state blockDecrypt(struct state s, struct state key)
+	struct state blockDecrypt(struct state s)
 	{
-		// Key Expansion 
-
-		int Nk = 4;			// Key Length in words Variable for AES128
-		int Nb = 4;			// Number of columns in state for AES128
-		int Nr = 10;		// Number of rounds required for AES128
-
-							// Expanded key should be of length Nb(Nr+1). Nb = 4 and Nr = 14 in AES256 implementation
-		word expandedKey[60];
-
-		//perform key expansion
-		keyExpansion(key, expandedKey, Nk, Nb, Nr);
-
 		// Add Round Key
 		s = AddRoundKey(s, expandedKey, Nr*Nb, (Nr + 1)*(Nb - 1));
 
@@ -752,26 +792,20 @@ int main()
 		}
 	}
 
-	//open the key input file
-	ifstream keyFile;
-	keyFile.open("keyFile.txt", ios::binary | ios::in);
-
-	//TODO, handle >128 bit keys, new struct?
-	struct state key;
-	while (!keyFile.eof())
+	int keyOption;
+	do
 	{
-		for (int i = 0; i < 4; i++)
-		{
-			for (int j = 0; j < 4; j++)
-			{
-				keyFile.read((char*)(&(key.stateByte[j][i])), 1);
-			}
-		}
-	}
+		// Choosing key length.
+		cout << endl << "1. AES128" << endl << "2. AES192" << endl << "3. AES256" << endl << "Enter your choice" << endl << endl;
+		cin >> keyOption;
+	} while (keyOption != 1 && keyOption != 2 && keyOption != 3);
 
+	//Setting the values of Nk, Nr and Nb;
 	AES aes;
-	vector<struct state*>output = aes.encrypt(input, key);
-	vector<struct state*>decryptOutput = aes.decrypt(output, key);
+	aes.setParameters(keyOption);
+
+	vector<struct state*>output = aes.encrypt(input);
+	vector<struct state*>decryptOutput = aes.decrypt(output);
 
 	string pause = "";
 	getline(cin, pause);
