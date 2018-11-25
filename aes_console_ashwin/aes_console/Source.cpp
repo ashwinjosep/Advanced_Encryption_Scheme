@@ -1,170 +1,174 @@
 // AES_Console.cpp : Defines the entry point for the console application.
-//
 
 #include <iostream>
+#include <fstream>
 #include <string>
-#include <math.h>
 #include <sstream>
+#include <vector>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <Windows.h>
+#include <bcrypt.h>
 #include <bitset>
 #include <iomanip>
-#include <fstream>
-#include <vector>
-#include <chrono>
+
+#pragma comment(lib, "Bcrypt")
+
 
 using namespace std;
 
 // Structure for state type
 struct state
 {
-	byte stateByte[4][4];
+	std::byte stateByte[4][4];
 };
 
 //Structure for word type
 struct word
 {
-	byte byteWord[4];
+	std::byte byteWord[4];
 };
 
 class AES {
 
 	// S-Box Initialisation
-	const byte sbox[256] = {
-		byte{ 0x63 }, byte{ 0x7c }, byte{ 0x77 }, byte{ 0x7b },
-		byte{ 0xf2 }, byte{ 0x6b }, byte{ 0x6f }, byte{ 0xc5 },
-		byte{ 0x30 }, byte{ 0x01 }, byte{ 0x67 }, byte{ 0x2b },
-		byte{ 0xfe }, byte{ 0xd7 }, byte{ 0xab }, byte{ 0x76 },
-		byte{ 0xca }, byte{ 0x82 }, byte{ 0xc9 }, byte{ 0x7d },
-		byte{ 0xfa }, byte{ 0x59 }, byte{ 0x47 }, byte{ 0xf0 },
-		byte{ 0xad }, byte{ 0xd4 }, byte{ 0xa2 }, byte{ 0xaf },
-		byte{ 0x9c }, byte{ 0xa4 }, byte{ 0x72 }, byte{ 0xc0 },
-		byte{ 0xb7 }, byte{ 0xfd }, byte{ 0x93 }, byte{ 0x26 },
-		byte{ 0x36 }, byte{ 0x3f }, byte{ 0xf7 }, byte{ 0xcc },
-		byte{ 0x34 }, byte{ 0xa5 }, byte{ 0xe5 }, byte{ 0xf1 },
-		byte{ 0x71 }, byte{ 0xd8 }, byte{ 0x31 }, byte{ 0x15 },
-		byte{ 0x04 }, byte{ 0xc7 }, byte{ 0x23 }, byte{ 0xc3 },
-		byte{ 0x18 }, byte{ 0x96 }, byte{ 0x05 }, byte{ 0x9a },
-		byte{ 0x07 }, byte{ 0x12 }, byte{ 0x80 }, byte{ 0xe2 },
-		byte{ 0xeb }, byte{ 0x27 }, byte{ 0xb2 }, byte{ 0x75 },
-		byte{ 0x09 }, byte{ 0x83 }, byte{ 0x2c }, byte{ 0x1a },
-		byte{ 0x1b }, byte{ 0x6e }, byte{ 0x5a }, byte{ 0xa0 },
-		byte{ 0x52 }, byte{ 0x3b }, byte{ 0xd6 }, byte{ 0xb3 },
-		byte{ 0x29 }, byte{ 0xe3 }, byte{ 0x2f }, byte{ 0x84 },
-		byte{ 0x53 }, byte{ 0xd1 }, byte{ 0x00 }, byte{ 0xed },
-		byte{ 0x20 }, byte{ 0xfc }, byte{ 0xb1 }, byte{ 0x5b },
-		byte{ 0x6a }, byte{ 0xcb }, byte{ 0xbe }, byte{ 0x39 },
-		byte{ 0x4a }, byte{ 0x4c }, byte{ 0x58 }, byte{ 0xcf },
-		byte{ 0xd0 }, byte{ 0xef }, byte{ 0xaa }, byte{ 0xfb },
-		byte{ 0x43 }, byte{ 0x4d }, byte{ 0x33 }, byte{ 0x85 },
-		byte{ 0x45 }, byte{ 0xf9 }, byte{ 0x02 }, byte{ 0x7f },
-		byte{ 0x50 }, byte{ 0x3c }, byte{ 0x9f }, byte{ 0xa8 },
-		byte{ 0x51 }, byte{ 0xa3 }, byte{ 0x40 }, byte{ 0x8f },
-		byte{ 0x92 }, byte{ 0x9d }, byte{ 0x38 }, byte{ 0xf5 },
-		byte{ 0xbc }, byte{ 0xb6 }, byte{ 0xda }, byte{ 0x21 },
-		byte{ 0x10 }, byte{ 0xff }, byte{ 0xf3 }, byte{ 0xd2 },
-		byte{ 0xcd }, byte{ 0x0c }, byte{ 0x13 }, byte{ 0xec },
-		byte{ 0x5f }, byte{ 0x97 }, byte{ 0x44 }, byte{ 0x17 },
-		byte{ 0xc4 }, byte{ 0xa7 }, byte{ 0x7e }, byte{ 0x3d },
-		byte{ 0x64 }, byte{ 0x5d }, byte{ 0x19 }, byte{ 0x73 },
-		byte{ 0x60 }, byte{ 0x81 }, byte{ 0x4f }, byte{ 0xdc },
-		byte{ 0x22 }, byte{ 0x2a }, byte{ 0x90 }, byte{ 0x88 },
-		byte{ 0x46 }, byte{ 0xee }, byte{ 0xb8 }, byte{ 0x14 },
-		byte{ 0xde }, byte{ 0x5e }, byte{ 0x0b }, byte{ 0xdb },
-		byte{ 0xe0 }, byte{ 0x32 }, byte{ 0x3a }, byte{ 0x0a },
-		byte{ 0x49 }, byte{ 0x06 }, byte{ 0x24 }, byte{ 0x5c },
-		byte{ 0xc2 }, byte{ 0xd3 }, byte{ 0xac }, byte{ 0x62 },
-		byte{ 0x91 }, byte{ 0x95 }, byte{ 0xe4 }, byte{ 0x79 },
-		byte{ 0xe7 }, byte{ 0xc8 }, byte{ 0x37 }, byte{ 0x6d },
-		byte{ 0x8d }, byte{ 0xd5 }, byte{ 0x4e }, byte{ 0xa9 },
-		byte{ 0x6c }, byte{ 0x56 }, byte{ 0xf4 }, byte{ 0xea },
-		byte{ 0x65 }, byte{ 0x7a }, byte{ 0xae }, byte{ 0x08 },
-		byte{ 0xba }, byte{ 0x78 }, byte{ 0x25 }, byte{ 0x2e },
-		byte{ 0x1c }, byte{ 0xa6 }, byte{ 0xb4 }, byte{ 0xc6 },
-		byte{ 0xe8 }, byte{ 0xdd }, byte{ 0x74 }, byte{ 0x1f },
-		byte{ 0x4b }, byte{ 0xbd }, byte{ 0x8b }, byte{ 0x8a },
-		byte{ 0x70 }, byte{ 0x3e }, byte{ 0xb5 }, byte{ 0x66 },
-		byte{ 0x48 }, byte{ 0x03 }, byte{ 0xf6 }, byte{ 0x0e },
-		byte{ 0x61 }, byte{ 0x35 }, byte{ 0x57 }, byte{ 0xb9 },
-		byte{ 0x86 }, byte{ 0xc1 }, byte{ 0x1d }, byte{ 0x9e },
-		byte{ 0xe1 }, byte{ 0xf8 }, byte{ 0x98 }, byte{ 0x11 },
-		byte{ 0x69 }, byte{ 0xd9 }, byte{ 0x8e }, byte{ 0x94 },
-		byte{ 0x9b }, byte{ 0x1e }, byte{ 0x87 }, byte{ 0xe9 },
-		byte{ 0xce }, byte{ 0x55 }, byte{ 0x28 }, byte{ 0xdf },
-		byte{ 0x8c }, byte{ 0xa1 }, byte{ 0x89 }, byte{ 0x0d },
-		byte{ 0xbf }, byte{ 0xe6 }, byte{ 0x42 }, byte{ 0x68 },
-		byte{ 0x41 }, byte{ 0x99 }, byte{ 0x2d }, byte{ 0x0f },
-		byte{ 0xb0 }, byte{ 0x54 }, byte{ 0xbb }, byte{ 0x16 }
+	const std::byte sbox[256] = {
+		std::byte{ 0x63 }, std::byte{ 0x7c }, std::byte{ 0x77 }, std::byte{ 0x7b },
+		std::byte{ 0xf2 }, std::byte{ 0x6b }, std::byte{ 0x6f }, std::byte{ 0xc5 },
+		std::byte{ 0x30 }, std::byte{ 0x01 }, std::byte{ 0x67 }, std::byte{ 0x2b },
+		std::byte{ 0xfe }, std::byte{ 0xd7 }, std::byte{ 0xab }, std::byte{ 0x76 },
+		std::byte{ 0xca }, std::byte{ 0x82 }, std::byte{ 0xc9 }, std::byte{ 0x7d },
+		std::byte{ 0xfa }, std::byte{ 0x59 }, std::byte{ 0x47 }, std::byte{ 0xf0 },
+		std::byte{ 0xad }, std::byte{ 0xd4 }, std::byte{ 0xa2 }, std::byte{ 0xaf },
+		std::byte{ 0x9c }, std::byte{ 0xa4 }, std::byte{ 0x72 }, std::byte{ 0xc0 },
+		std::byte{ 0xb7 }, std::byte{ 0xfd }, std::byte{ 0x93 }, std::byte{ 0x26 },
+		std::byte{ 0x36 }, std::byte{ 0x3f }, std::byte{ 0xf7 }, std::byte{ 0xcc },
+		std::byte{ 0x34 }, std::byte{ 0xa5 }, std::byte{ 0xe5 }, std::byte{ 0xf1 },
+		std::byte{ 0x71 }, std::byte{ 0xd8 }, std::byte{ 0x31 }, std::byte{ 0x15 },
+		std::byte{ 0x04 }, std::byte{ 0xc7 }, std::byte{ 0x23 }, std::byte{ 0xc3 },
+		std::byte{ 0x18 }, std::byte{ 0x96 }, std::byte{ 0x05 }, std::byte{ 0x9a },
+		std::byte{ 0x07 }, std::byte{ 0x12 }, std::byte{ 0x80 }, std::byte{ 0xe2 },
+		std::byte{ 0xeb }, std::byte{ 0x27 }, std::byte{ 0xb2 }, std::byte{ 0x75 },
+		std::byte{ 0x09 }, std::byte{ 0x83 }, std::byte{ 0x2c }, std::byte{ 0x1a },
+		std::byte{ 0x1b }, std::byte{ 0x6e }, std::byte{ 0x5a }, std::byte{ 0xa0 },
+		std::byte{ 0x52 }, std::byte{ 0x3b }, std::byte{ 0xd6 }, std::byte{ 0xb3 },
+		std::byte{ 0x29 }, std::byte{ 0xe3 }, std::byte{ 0x2f }, std::byte{ 0x84 },
+		std::byte{ 0x53 }, std::byte{ 0xd1 }, std::byte{ 0x00 }, std::byte{ 0xed },
+		std::byte{ 0x20 }, std::byte{ 0xfc }, std::byte{ 0xb1 }, std::byte{ 0x5b },
+		std::byte{ 0x6a }, std::byte{ 0xcb }, std::byte{ 0xbe }, std::byte{ 0x39 },
+		std::byte{ 0x4a }, std::byte{ 0x4c }, std::byte{ 0x58 }, std::byte{ 0xcf },
+		std::byte{ 0xd0 }, std::byte{ 0xef }, std::byte{ 0xaa }, std::byte{ 0xfb },
+		std::byte{ 0x43 }, std::byte{ 0x4d }, std::byte{ 0x33 }, std::byte{ 0x85 },
+		std::byte{ 0x45 }, std::byte{ 0xf9 }, std::byte{ 0x02 }, std::byte{ 0x7f },
+		std::byte{ 0x50 }, std::byte{ 0x3c }, std::byte{ 0x9f }, std::byte{ 0xa8 },
+		std::byte{ 0x51 }, std::byte{ 0xa3 }, std::byte{ 0x40 }, std::byte{ 0x8f },
+		std::byte{ 0x92 }, std::byte{ 0x9d }, std::byte{ 0x38 }, std::byte{ 0xf5 },
+		std::byte{ 0xbc }, std::byte{ 0xb6 }, std::byte{ 0xda }, std::byte{ 0x21 },
+		std::byte{ 0x10 }, std::byte{ 0xff }, std::byte{ 0xf3 }, std::byte{ 0xd2 },
+		std::byte{ 0xcd }, std::byte{ 0x0c }, std::byte{ 0x13 }, std::byte{ 0xec },
+		std::byte{ 0x5f }, std::byte{ 0x97 }, std::byte{ 0x44 }, std::byte{ 0x17 },
+		std::byte{ 0xc4 }, std::byte{ 0xa7 }, std::byte{ 0x7e }, std::byte{ 0x3d },
+		std::byte{ 0x64 }, std::byte{ 0x5d }, std::byte{ 0x19 }, std::byte{ 0x73 },
+		std::byte{ 0x60 }, std::byte{ 0x81 }, std::byte{ 0x4f }, std::byte{ 0xdc },
+		std::byte{ 0x22 }, std::byte{ 0x2a }, std::byte{ 0x90 }, std::byte{ 0x88 },
+		std::byte{ 0x46 }, std::byte{ 0xee }, std::byte{ 0xb8 }, std::byte{ 0x14 },
+		std::byte{ 0xde }, std::byte{ 0x5e }, std::byte{ 0x0b }, std::byte{ 0xdb },
+		std::byte{ 0xe0 }, std::byte{ 0x32 }, std::byte{ 0x3a }, std::byte{ 0x0a },
+		std::byte{ 0x49 }, std::byte{ 0x06 }, std::byte{ 0x24 }, std::byte{ 0x5c },
+		std::byte{ 0xc2 }, std::byte{ 0xd3 }, std::byte{ 0xac }, std::byte{ 0x62 },
+		std::byte{ 0x91 }, std::byte{ 0x95 }, std::byte{ 0xe4 }, std::byte{ 0x79 },
+		std::byte{ 0xe7 }, std::byte{ 0xc8 }, std::byte{ 0x37 }, std::byte{ 0x6d },
+		std::byte{ 0x8d }, std::byte{ 0xd5 }, std::byte{ 0x4e }, std::byte{ 0xa9 },
+		std::byte{ 0x6c }, std::byte{ 0x56 }, std::byte{ 0xf4 }, std::byte{ 0xea },
+		std::byte{ 0x65 }, std::byte{ 0x7a }, std::byte{ 0xae }, std::byte{ 0x08 },
+		std::byte{ 0xba }, std::byte{ 0x78 }, std::byte{ 0x25 }, std::byte{ 0x2e },
+		std::byte{ 0x1c }, std::byte{ 0xa6 }, std::byte{ 0xb4 }, std::byte{ 0xc6 },
+		std::byte{ 0xe8 }, std::byte{ 0xdd }, std::byte{ 0x74 }, std::byte{ 0x1f },
+		std::byte{ 0x4b }, std::byte{ 0xbd }, std::byte{ 0x8b }, std::byte{ 0x8a },
+		std::byte{ 0x70 }, std::byte{ 0x3e }, std::byte{ 0xb5 }, std::byte{ 0x66 },
+		std::byte{ 0x48 }, std::byte{ 0x03 }, std::byte{ 0xf6 }, std::byte{ 0x0e },
+		std::byte{ 0x61 }, std::byte{ 0x35 }, std::byte{ 0x57 }, std::byte{ 0xb9 },
+		std::byte{ 0x86 }, std::byte{ 0xc1 }, std::byte{ 0x1d }, std::byte{ 0x9e },
+		std::byte{ 0xe1 }, std::byte{ 0xf8 }, std::byte{ 0x98 }, std::byte{ 0x11 },
+		std::byte{ 0x69 }, std::byte{ 0xd9 }, std::byte{ 0x8e }, std::byte{ 0x94 },
+		std::byte{ 0x9b }, std::byte{ 0x1e }, std::byte{ 0x87 }, std::byte{ 0xe9 },
+		std::byte{ 0xce }, std::byte{ 0x55 }, std::byte{ 0x28 }, std::byte{ 0xdf },
+		std::byte{ 0x8c }, std::byte{ 0xa1 }, std::byte{ 0x89 }, std::byte{ 0x0d },
+		std::byte{ 0xbf }, std::byte{ 0xe6 }, std::byte{ 0x42 }, std::byte{ 0x68 },
+		std::byte{ 0x41 }, std::byte{ 0x99 }, std::byte{ 0x2d }, std::byte{ 0x0f },
+		std::byte{ 0xb0 }, std::byte{ 0x54 }, std::byte{ 0xbb }, std::byte{ 0x16 }
 	};
 
 	// Inverse S-Box Initialisation
-	const byte inv_sbox[256] = { 
-		byte{ 0x52 }, byte{ 0x09 }, byte{ 0x6a }, byte{ 0xd5 },
-		byte{ 0x30 }, byte{ 0x36 }, byte{ 0xa5 }, byte{ 0x38 },
-		byte{ 0xbf }, byte{ 0x40 }, byte{ 0xa3 }, byte{ 0x9e },
-		byte{ 0x81 }, byte{ 0xf3 }, byte{ 0xd7 }, byte{ 0xfb },
-		byte{ 0x7c }, byte{ 0xe3 }, byte{ 0x39 }, byte{ 0x82 },
-		byte{ 0x9b }, byte{ 0x2f }, byte{ 0xff }, byte{ 0x87 },
-		byte{ 0x34 }, byte{ 0x8e }, byte{ 0x43 }, byte{ 0x44 },
-		byte{ 0xc4 }, byte{ 0xde }, byte{ 0xe9 }, byte{ 0xcb },
-		byte{ 0x54 }, byte{ 0x7b }, byte{ 0x94 }, byte{ 0x32 },
-		byte{ 0xa6 }, byte{ 0xc2 }, byte{ 0x23 }, byte{ 0x3d },
-		byte{ 0xee }, byte{ 0x4c }, byte{ 0x95 }, byte{ 0x0b },
-		byte{ 0x42 }, byte{ 0xfa }, byte{ 0xc3 }, byte{ 0x4e },
-		byte{ 0x08 }, byte{ 0x2e }, byte{ 0xa1 }, byte{ 0x66 },
-		byte{ 0x28 }, byte{ 0xd9 }, byte{ 0x24 }, byte{ 0xb2 },
-		byte{ 0x76 }, byte{ 0x5b }, byte{ 0xa2 }, byte{ 0x49 },
-		byte{ 0x6d }, byte{ 0x8b }, byte{ 0xd1 }, byte{ 0x25 },
-		byte{ 0x72 }, byte{ 0xf8 }, byte{ 0xf6 }, byte{ 0x64 },
-		byte{ 0x86 }, byte{ 0x68 }, byte{ 0x98 }, byte{ 0x16 },
-		byte{ 0xd4 }, byte{ 0xa4 }, byte{ 0x5c }, byte{ 0xcc },
-		byte{ 0x5d }, byte{ 0x65 }, byte{ 0xb6 }, byte{ 0x92 },
-		byte{ 0x6c }, byte{ 0x70 }, byte{ 0x48 }, byte{ 0x50 },
-		byte{ 0xfd }, byte{ 0xed }, byte{ 0xb9 }, byte{ 0xda },
-		byte{ 0x5e }, byte{ 0x15 }, byte{ 0x46 }, byte{ 0x57 },
-		byte{ 0xa7 }, byte{ 0x8d }, byte{ 0x9d }, byte{ 0x84 },
-		byte{ 0x90 }, byte{ 0xd8 }, byte{ 0xab }, byte{ 0x00 },
-		byte{ 0x8c }, byte{ 0xbc }, byte{ 0xd3 }, byte{ 0x0a },
-		byte{ 0xf7 }, byte{ 0xe4 }, byte{ 0x58 }, byte{ 0x05 },
-		byte{ 0xb8 }, byte{ 0xb3 }, byte{ 0x45 }, byte{ 0x06 },
-		byte{ 0xd0 }, byte{ 0x2c }, byte{ 0x1e }, byte{ 0x8f },
-		byte{ 0xca }, byte{ 0x3f }, byte{ 0x0f }, byte{ 0x02 },
-		byte{ 0xc1 }, byte{ 0xaf }, byte{ 0xbd }, byte{ 0x03 },
-		byte{ 0x01 }, byte{ 0x13 }, byte{ 0x8a }, byte{ 0x6b },
-		byte{ 0x3a }, byte{ 0x91 }, byte{ 0x11 }, byte{ 0x41 },
-		byte{ 0x4f }, byte{ 0x67 }, byte{ 0xdc }, byte{ 0xea },
-		byte{ 0x97 }, byte{ 0xf2 }, byte{ 0xcf }, byte{ 0xce },
-		byte{ 0xf0 }, byte{ 0xb4 }, byte{ 0xe6 }, byte{ 0x73 },
-		byte{ 0x96 }, byte{ 0xac }, byte{ 0x74 }, byte{ 0x22 },
-		byte{ 0xe7 }, byte{ 0xad }, byte{ 0x35 }, byte{ 0x85 },
-		byte{ 0xe2 }, byte{ 0xf9 }, byte{ 0x37 }, byte{ 0xe8 },
-		byte{ 0x1c }, byte{ 0x75 }, byte{ 0xdf }, byte{ 0x6e },
-		byte{ 0x47 }, byte{ 0xf1 }, byte{ 0x1a }, byte{ 0x71 },
-		byte{ 0x1d }, byte{ 0x29 }, byte{ 0xc5 }, byte{ 0x89 },
-		byte{ 0x6f }, byte{ 0xb7 }, byte{ 0x62 }, byte{ 0x0e },
-		byte{ 0xaa }, byte{ 0x18 }, byte{ 0xbe }, byte{ 0x1b },
-		byte{ 0xfc }, byte{ 0x56 }, byte{ 0x3e }, byte{ 0x4b },
-		byte{ 0xc6 }, byte{ 0xd2 }, byte{ 0x79 }, byte{ 0x20 },
-		byte{ 0x9a }, byte{ 0xdb }, byte{ 0xc0 }, byte{ 0xfe },
-		byte{ 0x78 }, byte{ 0xcd }, byte{ 0x5a }, byte{ 0xf4 },
-		byte{ 0x1f }, byte{ 0xdd }, byte{ 0xa8 }, byte{ 0x33 },
-		byte{ 0x88 }, byte{ 0x07 }, byte{ 0xc7 }, byte{ 0x31 },
-		byte{ 0xb1 }, byte{ 0x12 }, byte{ 0x10 }, byte{ 0x59 },
-		byte{ 0x27 }, byte{ 0x80 }, byte{ 0xec }, byte{ 0x5f },
-		byte{ 0x60 }, byte{ 0x51 }, byte{ 0x7f }, byte{ 0xa9 },
-		byte{ 0x19 }, byte{ 0xb5 }, byte{ 0x4a }, byte{ 0x0d },
-		byte{ 0x2d }, byte{ 0xe5 }, byte{ 0x7a }, byte{ 0x9f },
-		byte{ 0x93 }, byte{ 0xc9 }, byte{ 0x9c }, byte{ 0xef },
-		byte{ 0xa0 }, byte{ 0xe0 }, byte{ 0x3b }, byte{ 0x4d },
-		byte{ 0xae }, byte{ 0x2a }, byte{ 0xf5 }, byte{ 0xb0 },
-		byte{ 0xc8 }, byte{ 0xeb }, byte{ 0xbb }, byte{ 0x3c },
-		byte{ 0x83 }, byte{ 0x53 }, byte{ 0x99 }, byte{ 0x61 },
-		byte{ 0x17 }, byte{ 0x2b }, byte{ 0x04 }, byte{ 0x7e },
-		byte{ 0xba }, byte{ 0x77 }, byte{ 0xd6 }, byte{ 0x26 },
-		byte{ 0xe1 }, byte{ 0x69 }, byte{ 0x14 }, byte{ 0x63 },
-		byte{ 0x55 }, byte{ 0x21 }, byte{ 0x0c }, byte{ 0x7d }
+	const std::byte inv_sbox[256] = { 
+		std::byte{ 0x52 }, std::byte{ 0x09 }, std::byte{ 0x6a }, std::byte{ 0xd5 },
+		std::byte{ 0x30 }, std::byte{ 0x36 }, std::byte{ 0xa5 }, std::byte{ 0x38 },
+		std::byte{ 0xbf }, std::byte{ 0x40 }, std::byte{ 0xa3 }, std::byte{ 0x9e },
+		std::byte{ 0x81 }, std::byte{ 0xf3 }, std::byte{ 0xd7 }, std::byte{ 0xfb },
+		std::byte{ 0x7c }, std::byte{ 0xe3 }, std::byte{ 0x39 }, std::byte{ 0x82 },
+		std::byte{ 0x9b }, std::byte{ 0x2f }, std::byte{ 0xff }, std::byte{ 0x87 },
+		std::byte{ 0x34 }, std::byte{ 0x8e }, std::byte{ 0x43 }, std::byte{ 0x44 },
+		std::byte{ 0xc4 }, std::byte{ 0xde }, std::byte{ 0xe9 }, std::byte{ 0xcb },
+		std::byte{ 0x54 }, std::byte{ 0x7b }, std::byte{ 0x94 }, std::byte{ 0x32 },
+		std::byte{ 0xa6 }, std::byte{ 0xc2 }, std::byte{ 0x23 }, std::byte{ 0x3d },
+		std::byte{ 0xee }, std::byte{ 0x4c }, std::byte{ 0x95 }, std::byte{ 0x0b },
+		std::byte{ 0x42 }, std::byte{ 0xfa }, std::byte{ 0xc3 }, std::byte{ 0x4e },
+		std::byte{ 0x08 }, std::byte{ 0x2e }, std::byte{ 0xa1 }, std::byte{ 0x66 },
+		std::byte{ 0x28 }, std::byte{ 0xd9 }, std::byte{ 0x24 }, std::byte{ 0xb2 },
+		std::byte{ 0x76 }, std::byte{ 0x5b }, std::byte{ 0xa2 }, std::byte{ 0x49 },
+		std::byte{ 0x6d }, std::byte{ 0x8b }, std::byte{ 0xd1 }, std::byte{ 0x25 },
+		std::byte{ 0x72 }, std::byte{ 0xf8 }, std::byte{ 0xf6 }, std::byte{ 0x64 },
+		std::byte{ 0x86 }, std::byte{ 0x68 }, std::byte{ 0x98 }, std::byte{ 0x16 },
+		std::byte{ 0xd4 }, std::byte{ 0xa4 }, std::byte{ 0x5c }, std::byte{ 0xcc },
+		std::byte{ 0x5d }, std::byte{ 0x65 }, std::byte{ 0xb6 }, std::byte{ 0x92 },
+		std::byte{ 0x6c }, std::byte{ 0x70 }, std::byte{ 0x48 }, std::byte{ 0x50 },
+		std::byte{ 0xfd }, std::byte{ 0xed }, std::byte{ 0xb9 }, std::byte{ 0xda },
+		std::byte{ 0x5e }, std::byte{ 0x15 }, std::byte{ 0x46 }, std::byte{ 0x57 },
+		std::byte{ 0xa7 }, std::byte{ 0x8d }, std::byte{ 0x9d }, std::byte{ 0x84 },
+		std::byte{ 0x90 }, std::byte{ 0xd8 }, std::byte{ 0xab }, std::byte{ 0x00 },
+		std::byte{ 0x8c }, std::byte{ 0xbc }, std::byte{ 0xd3 }, std::byte{ 0x0a },
+		std::byte{ 0xf7 }, std::byte{ 0xe4 }, std::byte{ 0x58 }, std::byte{ 0x05 },
+		std::byte{ 0xb8 }, std::byte{ 0xb3 }, std::byte{ 0x45 }, std::byte{ 0x06 },
+		std::byte{ 0xd0 }, std::byte{ 0x2c }, std::byte{ 0x1e }, std::byte{ 0x8f },
+		std::byte{ 0xca }, std::byte{ 0x3f }, std::byte{ 0x0f }, std::byte{ 0x02 },
+		std::byte{ 0xc1 }, std::byte{ 0xaf }, std::byte{ 0xbd }, std::byte{ 0x03 },
+		std::byte{ 0x01 }, std::byte{ 0x13 }, std::byte{ 0x8a }, std::byte{ 0x6b },
+		std::byte{ 0x3a }, std::byte{ 0x91 }, std::byte{ 0x11 }, std::byte{ 0x41 },
+		std::byte{ 0x4f }, std::byte{ 0x67 }, std::byte{ 0xdc }, std::byte{ 0xea },
+		std::byte{ 0x97 }, std::byte{ 0xf2 }, std::byte{ 0xcf }, std::byte{ 0xce },
+		std::byte{ 0xf0 }, std::byte{ 0xb4 }, std::byte{ 0xe6 }, std::byte{ 0x73 },
+		std::byte{ 0x96 }, std::byte{ 0xac }, std::byte{ 0x74 }, std::byte{ 0x22 },
+		std::byte{ 0xe7 }, std::byte{ 0xad }, std::byte{ 0x35 }, std::byte{ 0x85 },
+		std::byte{ 0xe2 }, std::byte{ 0xf9 }, std::byte{ 0x37 }, std::byte{ 0xe8 },
+		std::byte{ 0x1c }, std::byte{ 0x75 }, std::byte{ 0xdf }, std::byte{ 0x6e },
+		std::byte{ 0x47 }, std::byte{ 0xf1 }, std::byte{ 0x1a }, std::byte{ 0x71 },
+		std::byte{ 0x1d }, std::byte{ 0x29 }, std::byte{ 0xc5 }, std::byte{ 0x89 },
+		std::byte{ 0x6f }, std::byte{ 0xb7 }, std::byte{ 0x62 }, std::byte{ 0x0e },
+		std::byte{ 0xaa }, std::byte{ 0x18 }, std::byte{ 0xbe }, std::byte{ 0x1b },
+		std::byte{ 0xfc }, std::byte{ 0x56 }, std::byte{ 0x3e }, std::byte{ 0x4b },
+		std::byte{ 0xc6 }, std::byte{ 0xd2 }, std::byte{ 0x79 }, std::byte{ 0x20 },
+		std::byte{ 0x9a }, std::byte{ 0xdb }, std::byte{ 0xc0 }, std::byte{ 0xfe },
+		std::byte{ 0x78 }, std::byte{ 0xcd }, std::byte{ 0x5a }, std::byte{ 0xf4 },
+		std::byte{ 0x1f }, std::byte{ 0xdd }, std::byte{ 0xa8 }, std::byte{ 0x33 },
+		std::byte{ 0x88 }, std::byte{ 0x07 }, std::byte{ 0xc7 }, std::byte{ 0x31 },
+		std::byte{ 0xb1 }, std::byte{ 0x12 }, std::byte{ 0x10 }, std::byte{ 0x59 },
+		std::byte{ 0x27 }, std::byte{ 0x80 }, std::byte{ 0xec }, std::byte{ 0x5f },
+		std::byte{ 0x60 }, std::byte{ 0x51 }, std::byte{ 0x7f }, std::byte{ 0xa9 },
+		std::byte{ 0x19 }, std::byte{ 0xb5 }, std::byte{ 0x4a }, std::byte{ 0x0d },
+		std::byte{ 0x2d }, std::byte{ 0xe5 }, std::byte{ 0x7a }, std::byte{ 0x9f },
+		std::byte{ 0x93 }, std::byte{ 0xc9 }, std::byte{ 0x9c }, std::byte{ 0xef },
+		std::byte{ 0xa0 }, std::byte{ 0xe0 }, std::byte{ 0x3b }, std::byte{ 0x4d },
+		std::byte{ 0xae }, std::byte{ 0x2a }, std::byte{ 0xf5 }, std::byte{ 0xb0 },
+		std::byte{ 0xc8 }, std::byte{ 0xeb }, std::byte{ 0xbb }, std::byte{ 0x3c },
+		std::byte{ 0x83 }, std::byte{ 0x53 }, std::byte{ 0x99 }, std::byte{ 0x61 },
+		std::byte{ 0x17 }, std::byte{ 0x2b }, std::byte{ 0x04 }, std::byte{ 0x7e },
+		std::byte{ 0xba }, std::byte{ 0x77 }, std::byte{ 0xd6 }, std::byte{ 0x26 },
+		std::byte{ 0xe1 }, std::byte{ 0x69 }, std::byte{ 0x14 }, std::byte{ 0x63 },
+		std::byte{ 0x55 }, std::byte{ 0x21 }, std::byte{ 0x0c }, std::byte{ 0x7d }
 	};
 
+	//IV variable
 	state IV;
 
 public:
@@ -179,15 +183,6 @@ public:
 		//GENERATE IV RANDOMLY AND SET AS THE FIRST OUTPUT BLOCK
 		generateIV();
 		*(output.back()) = blockEncrypt(IV, key);
-
-		////HARDCODED FOR NOW
-		//for (int i = 0; i < 4; i++)
-		//{
-		//	for (int j = 0; j < 4; j++)
-		//	{
-		//		output.back()->stateByte[i][j] = byte{ 0x01 };
-		//	}
-		//}
 		
 		//for each input block, create an encrypted output block in CBC mode
 		for (unsigned int i = 0; i < input.size(); i++)
@@ -215,35 +210,51 @@ public:
 
 private:
 
-	// Random IV Generator using timestamp nonce
+	int generateRandom()
+	{
+		BCRYPT_ALG_HANDLE Prov;
+		int Buffer = 0;
+		if (!BCRYPT_SUCCESS(BCryptOpenAlgorithmProvider(&Prov, BCRYPT_RNG_ALGORITHM, NULL, 0)))
+		{
+			Buffer = 0;
+		}
+		if (!BCRYPT_SUCCESS(BCryptGenRandom(Prov, (PUCHAR)(&Buffer), sizeof(Buffer), 0)))
+		{
+			Buffer = 0;
+		}
+		BCryptCloseAlgorithmProvider(Prov, 0);
+		return Buffer;
+	}
+
+	// Random IV Generator 
 	void generateIV()
 	{
-		using namespace std::chrono;
-		nanoseconds ns = duration_cast<nanoseconds>(system_clock::now().time_since_epoch());
+
 		std::stringstream stream;
-		long long int value = ns.count();
-		int tempWord;
+		int tempWord = 0;
 		for (int i = 0; i < 4; i++)
 		{
 			for (int j = 0; j < 4; j++)
 			{
-				tempWord = value % 10;
+				do
+				{
+					tempWord = generateRandom();
+				} while (tempWord == 0);
 				stream << std::hex << tempWord;
 				IV.stateByte[i][j] = std::byte(tempWord);
-				value /= 10;
 			}
 		}
 	}
 
 	//S-Box substitution
-	byte SubBytes(byte a)
+	std::byte SubBytes(std::byte a)
 	{
-		byte temp = sbox[to_integer<int>(a)];
+		std::byte temp = sbox[to_integer<int>(a)];
 		return temp;
 	}
 
-	byte InvSubBytes(byte a) {
-		byte temp = inv_sbox[to_integer<int>(a)];
+	std::byte InvSubBytes(std::byte a) {
+		std::byte temp = inv_sbox[to_integer<int>(a)];
 		return temp;
 	}
 
@@ -353,43 +364,43 @@ private:
 	}
 
 	//used in MixColumns and inverse MixColumns to multiply a byte with one of the constants
-	byte mixMultiply(byte variable, byte constantByte)
+	std::byte mixMultiply(std::byte variable, std::byte constantByte)
 	{
 		//check which constant is being multiplied
-		if (constantByte == byte{ 0x02 })
+		if (constantByte == std::byte{ 0x02 })
 		{
 			//if it is 0x02, check the highest order bit for overflow
-			if ((variable >> 7) == byte{ 0x01 })
-				return ((variable << 1) ^ byte { 0x1b });
+			if ((variable >> 7) == std::byte{ 0x01 })
+				return ((variable << 1) ^ std::byte { 0x1b });
 			else
-				return ((variable << 1) ^ byte { 0x00 });
+				return ((variable << 1) ^ std::byte { 0x00 });
 		}
-		else if (constantByte == byte{ 0x03 })
+		else if (constantByte == std::byte{ 0x03 })
 		{
 			//in the case of 0x03 we call again for 0x02 and the variable value, before XORing with its original value
-			return mixMultiply(variable, byte{ 0x02 }) ^ variable;
+			return mixMultiply(variable, std::byte{ 0x02 }) ^ variable;
 		}
-		else if (constantByte == byte{ 0x09 })
+		else if (constantByte == std::byte{ 0x09 })
 		{
 			//in the case of 0x09, we turn it into 0x08 + 0x01
-			return mixMultiply(mixMultiply(mixMultiply(variable, byte{ 0x02 }), byte{ 0x02 }), byte{ 0x02 }) ^ variable;
+			return mixMultiply(mixMultiply(mixMultiply(variable, std::byte{ 0x02 }), std::byte{ 0x02 }), std::byte{ 0x02 }) ^ variable;
 		}
-		else if (constantByte == byte{ 0x0b })
+		else if (constantByte == std::byte{ 0x0b })
 		{
 			//in the case of 0x0b, we turn it into 0x08 + 0x02 + 0x01
-			return mixMultiply(mixMultiply(mixMultiply(variable, byte{ 0x02 }), byte{ 0x02 }), byte{ 0x02 }) ^ mixMultiply(variable, byte{ 0x02 }) ^ variable;
+			return mixMultiply(mixMultiply(mixMultiply(variable, std::byte{ 0x02 }), std::byte{ 0x02 }), std::byte{ 0x02 }) ^ mixMultiply(variable, std::byte{ 0x02 }) ^ variable;
 		}
-		else if (constantByte == byte{ 0x0d })
+		else if (constantByte == std::byte{ 0x0d })
 		{
 			//in the case of 0x0d, we turn it into 0x08 + 0x04 + 0x01
-			return mixMultiply(mixMultiply(mixMultiply(variable, byte{ 0x02 }), byte{ 0x02 }), byte{ 0x02 }) ^ mixMultiply(mixMultiply(variable, byte{ 0x02 }), byte{ 0x02 }) ^ variable;
+			return mixMultiply(mixMultiply(mixMultiply(variable, std::byte{ 0x02 }), std::byte{ 0x02 }), std::byte{ 0x02 }) ^ mixMultiply(mixMultiply(variable, std::byte{ 0x02 }), std::byte{ 0x02 }) ^ variable;
 		}
-		else if (constantByte == byte{ 0x0e })
+		else if (constantByte == std::byte{ 0x0e })
 		{
 			//in the case of 0x0e, we turn it into 0x08 + 0x04 + 0x02
-			return mixMultiply(mixMultiply(mixMultiply(variable, byte{ 0x02 }), byte{ 0x02 }), byte{ 0x02 }) ^ mixMultiply(mixMultiply(variable, byte{ 0x02 }), byte{ 0x02 }) ^ mixMultiply(variable, byte{ 0x02 });
+			return mixMultiply(mixMultiply(mixMultiply(variable, std::byte{ 0x02 }), std::byte{ 0x02 }), std::byte{ 0x02 }) ^ mixMultiply(mixMultiply(variable, std::byte{ 0x02 }), std::byte{ 0x02 }) ^ mixMultiply(variable, std::byte{ 0x02 });
 		}
-		return byte{ 0x00 };
+		return std::byte{ 0x00 };
 	}
 
 	//after shifting rows, mix columns to provide diffusion over whole block
@@ -398,16 +409,16 @@ private:
 		//operate on one column at a time
 		for (int column = 0; column < 4; column++)
 		{
-			byte s0c = s.stateByte[0][column];
-			byte s1c = s.stateByte[1][column];
-			byte s2c = s.stateByte[2][column];
-			byte s3c = s.stateByte[3][column];
+			std::byte s0c = s.stateByte[0][column];
+			std::byte s1c = s.stateByte[1][column];
+			std::byte s2c = s.stateByte[2][column];
+			std::byte s3c = s.stateByte[3][column];
 
 			//calculate the matrix multiplication to get the mixed columns
-			s.stateByte[0][column] = (mixMultiply(s0c, byte{ 0x02 })) ^ (mixMultiply(s1c, byte{ 0x03 })) ^ s2c ^ s3c;
-			s.stateByte[1][column] = s0c ^ (mixMultiply(s1c, byte{ 0x02 })) ^ (mixMultiply(s2c, byte{ 0x03 })) ^ s3c;
-			s.stateByte[2][column] = s0c ^ s1c ^ (mixMultiply(s2c, byte{ 0x02 })) ^ (mixMultiply(s3c, byte{ 0x03 }));
-			s.stateByte[3][column] = (mixMultiply(s0c, byte{ 0x03 })) ^ s1c ^ s2c ^ (mixMultiply(s3c, byte{ 0x02 }));
+			s.stateByte[0][column] = (mixMultiply(s0c, std::byte{ 0x02 })) ^ (mixMultiply(s1c, std::byte{ 0x03 })) ^ s2c ^ s3c;
+			s.stateByte[1][column] = s0c ^ (mixMultiply(s1c, std::byte{ 0x02 })) ^ (mixMultiply(s2c, std::byte{ 0x03 })) ^ s3c;
+			s.stateByte[2][column] = s0c ^ s1c ^ (mixMultiply(s2c, std::byte{ 0x02 })) ^ (mixMultiply(s3c, std::byte{ 0x03 }));
+			s.stateByte[3][column] = (mixMultiply(s0c, std::byte{ 0x03 })) ^ s1c ^ s2c ^ (mixMultiply(s3c, std::byte{ 0x02 }));
 
 		}
 		return s;
@@ -419,16 +430,16 @@ private:
 		//operate on one column at a time
 		for (int column = 0; column < 4; column++)
 		{
-			byte s0c = s.stateByte[0][column];
-			byte s1c = s.stateByte[1][column];
-			byte s2c = s.stateByte[2][column];
-			byte s3c = s.stateByte[3][column];
+			std::byte s0c = s.stateByte[0][column];
+			std::byte s1c = s.stateByte[1][column];
+			std::byte s2c = s.stateByte[2][column];
+			std::byte s3c = s.stateByte[3][column];
 
 			//calculate the matrix multiplication to get the mixed columns
-			s.stateByte[0][column] = (mixMultiply(s0c, byte{ 0x0e })) ^ (mixMultiply(s1c, byte{ 0x0b })) ^ (mixMultiply(s2c, byte{ 0x0d })) ^ (mixMultiply(s3c, byte{ 0x09 }));
-			s.stateByte[1][column] = (mixMultiply(s0c, byte{ 0x09 })) ^ (mixMultiply(s1c, byte{ 0x0e })) ^ (mixMultiply(s2c, byte{ 0x0b })) ^ (mixMultiply(s3c, byte{ 0x0d }));
-			s.stateByte[2][column] = (mixMultiply(s0c, byte{ 0x0d })) ^ (mixMultiply(s1c, byte{ 0x09 })) ^ (mixMultiply(s2c, byte{ 0x0e })) ^ (mixMultiply(s3c, byte{ 0x0b }));
-			s.stateByte[3][column] = (mixMultiply(s0c, byte{ 0x0b })) ^ (mixMultiply(s1c, byte{ 0x0d })) ^ (mixMultiply(s2c, byte{ 0x09 })) ^ (mixMultiply(s3c, byte{ 0x0e }));
+			s.stateByte[0][column] = (mixMultiply(s0c, std::byte{ 0x0e })) ^ (mixMultiply(s1c, std::byte{ 0x0b })) ^ (mixMultiply(s2c, std::byte{ 0x0d })) ^ (mixMultiply(s3c, std::byte{ 0x09 }));
+			s.stateByte[1][column] = (mixMultiply(s0c, std::byte{ 0x09 })) ^ (mixMultiply(s1c, std::byte{ 0x0e })) ^ (mixMultiply(s2c, std::byte{ 0x0b })) ^ (mixMultiply(s3c, std::byte{ 0x0d }));
+			s.stateByte[2][column] = (mixMultiply(s0c, std::byte{ 0x0d })) ^ (mixMultiply(s1c, std::byte{ 0x09 })) ^ (mixMultiply(s2c, std::byte{ 0x0e })) ^ (mixMultiply(s3c, std::byte{ 0x0b }));
+			s.stateByte[3][column] = (mixMultiply(s0c, std::byte{ 0x0b })) ^ (mixMultiply(s1c, std::byte{ 0x0d })) ^ (mixMultiply(s2c, std::byte{ 0x09 })) ^ (mixMultiply(s3c, std::byte{ 0x0e }));
 
 		}
 		return s;
@@ -470,7 +481,7 @@ private:
 		int temp = (int)pow(2, i - 1);
 		// Converting to hex
 		std::stringstream stream;
-		byte multiplier = byte{ 0x1B };
+		std::byte multiplier = std::byte{ 0x1B };
 		stream << std::hex << temp;
 		result.byteWord[0] = std::byte(temp);
 		// when the value overflows xor with 0x1B
@@ -486,7 +497,7 @@ private:
 		}
 		for (int j = 1; j < 4; j++)
 		{
-			result.byteWord[j] = byte{ 0x00 };
+			result.byteWord[j] = std::byte{ 0x00 };
 		}
 		return result;
 	}
@@ -545,7 +556,7 @@ private:
 		}
 	}
 
-	//
+	//Encryption Function for a single block
 	struct state blockEncrypt(struct state s, struct state key)
 	{
 		// Key Expansion 
@@ -735,7 +746,7 @@ int main()
 				//check if the padding bytes are known at this point, and set the byte to that value if so
 				if (paddingBytes != -1)
 				{
-					input.back()->stateByte[j][i] = (byte)paddingBytes;
+					input.back()->stateByte[j][i] = (std::byte)paddingBytes;
 				}
 			}
 		}
